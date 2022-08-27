@@ -43,6 +43,7 @@ def init(
         repo_zip_file = wget.download(
             url=f"https://github.com/{repo}/archive/refs/heads/dev.zip",
             out=f"{temp_dir}/{repo.replace('/','_')}.zip",
+            bar=lambda current, total, width: (),
         )
 
         # Extract repository zipfile from GitHub:
@@ -51,10 +52,10 @@ def init(
 
         # Parse metaproject configuration:
         template_dir: Path
-        config: Config = Config()
+        config: Config
         for config_path in Path(temp_dir).glob(f"*/metaproject-config.yaml"):
             template_dir = config_path.parent
-            config.load(config_path)
+            config = Config.load(config_path)
 
         # Parse metaproject template:
         template: Template = Template(template_dir)
@@ -62,8 +63,9 @@ def init(
         # Verify metaproject:
         test(config, template)
 
-        print(config.command())
-
+        command = config.command(callback=template.init)
+        command.parse_args(ctx, ctx.args)
+        command.invoke(ctx)
 
 
 if __name__ == "__main__":

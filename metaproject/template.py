@@ -1,3 +1,4 @@
+import click
 import jinja2
 import jinja2.meta
 import pathlib
@@ -66,3 +67,22 @@ class Template:
                 self.file_templates.append(
                     FileTemplate(template_path, template_dir=template_dir, env=env)
                 )
+    def init(self, **context):
+        # Render file paths:
+        output_paths = []
+        for file_template in self.file_templates:
+            output_paths.append(file_template.output_path(context))
+
+        # Ask for confirmation:
+        click.confirm("\n".join([
+            "Create the following files?",
+            *output_paths,
+        ]))
+
+        for file_template in self.file_templates:
+            # Render file path:
+            output_path = file_template.output_path(context)
+            output_path.mkdir(parents=True, exists_ok=True)
+            # Render file contents:
+            output_contents = file_template.output_file_contents(context)
+            output_path.write_text(output_contents)

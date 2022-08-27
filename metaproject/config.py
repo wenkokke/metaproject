@@ -50,48 +50,62 @@ class VariableConfig(DataClassJsonMixin):
     def has_default(self) -> bool:
         return self.default is not None
 
-    @property
-    def prompt(self) -> str:
+    def get_prompt(self) -> str:
         return f"Enter {' '.join(self.name.split('_'))}"
 
     def get_default(self) -> typing.Optional[str]:
         if isinstance(self.default, DefaultConfig):
-            self.default = subprocess.getoutput(self.default.shell)
+            try:
+                self.default = subprocess.getoutput(self.default.shell)
+            except subprocess.CalledProcessError:
+                return None
         return self.default
 
     def option(self) -> click.Option:
         if self.has_default:
             return click.Option(
-                f"--{self.name}",
-                prompt=self.prompt,
+                param_decls=[f"--{self.name}"],
+                prompt=self.get_prompt(),
                 default=self.get_default(),
             )
         else:
             return click.Option(
-                f"--{self.name}",
-                prompt=self.prompt,
+                param_decls=[f"--{self.name}"],
+                prompt=self.get_prompt(),
             )
 
 
 @dataclass
 class Config:
+    name: str
     variables: list[VariableConfig] = field(default_factory=list)
 
-    def load(self, path: typing.Union[str, pathlib.Path]):
+    @staticmethod
+    def load(path: typing.Union[str, pathlib.Path]) -> "Config":
         if isinstance(path, str):
             path = pathlib.Path(path)
         contents = yaml.safe_load(path.read_text())
+        variables = []
+        name = contents["name"]
         for variable_dict in contents["variables"]:
-            self.variables.append(VariableConfig.from_dict(variable_dict))
+            variables.append(VariableConfig.from_dict(variable_dict))
+        return Config(name=name, variables=variables)
+
+    def option_parser(self, ctx: click.Context) -> click.OptionParser:
+        """
+        Create a click option parser for a given variable spec.
+        """
+        option_parser = click.OptionParser(ctx)
+        for spec in self.variables:
+            spec.option().add_to_parser(option_parser, ctx)
+        return option_parser
 
     def command(self, **kwargs) -> click.Command:
         """
         Create a click option parser for a given variable spec.
         """
-        params: list[click.Parameter] = [spec.option() for spec in self.variables]
-        print(params)
         return click.Command(
-            name="init_project",
-            params=params,
+            name=self.name,
+            params=[spec.option() for spec in self.variables],
             **kwargs,
         )
