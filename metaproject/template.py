@@ -71,7 +71,7 @@ class Template:
         # Render file paths:
         output_paths = []
         for file_template in self.file_templates:
-            output_paths.append(file_template.output_path(context))
+            output_paths.append(str(file_template.output_path(context)))
 
         # Ask for confirmation:
         click.confirm("\n".join([
