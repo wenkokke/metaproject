@@ -40,10 +40,14 @@ class FileTemplate:
         self.contents_template = env.from_string(source=contents_template_str)
 
         # Store variables used in path_template and contents_template
-        self.variables = set((
-            *jinja2.meta.find_undeclared_variables(env.parse(path_template_str)),
-            *jinja2.meta.find_undeclared_variables(env.parse(contents_template_str)),
-        ))
+        self.variables = set(
+            (
+                *jinja2.meta.find_undeclared_variables(env.parse(path_template_str)),
+                *jinja2.meta.find_undeclared_variables(
+                    env.parse(contents_template_str)
+                ),
+            )
+        )
 
     def output_path(self, context: typing.Any) -> pathlib.Path:
         return pathlib.Path(self.path_template.render(context))
@@ -63,10 +67,14 @@ class Template:
     ):
         self.file_templates = []
         for template_path in template_dir.glob("**/*"):
-            if template_path.is_file():
+            if (
+                template_path.is_file()
+                and template_path.name != "metaproject-config.yaml"
+            ):
                 self.file_templates.append(
                     FileTemplate(template_path, template_dir=template_dir, env=env)
                 )
+
     def init(self, **context):
         # Render file paths:
         output_paths = []
@@ -74,15 +82,19 @@ class Template:
             output_paths.append(str(file_template.output_path(context)))
 
         # Ask for confirmation:
-        click.confirm("\n".join([
-            "Create the following files?",
-            *output_paths,
-        ]))
+        click.confirm(
+            "\n".join(
+                [
+                    "Create the following files?",
+                    *output_paths,
+                ]
+            )
+        )
 
         for file_template in self.file_templates:
             # Render file path:
             output_path = file_template.output_path(context)
-            output_path.mkdir(parents=True, exists_ok=True)
+            output_path.mkdir(parents=True, exist_ok=True)
             # Render file contents:
             output_contents = file_template.output_file_contents(context)
             output_path.write_text(output_contents)
