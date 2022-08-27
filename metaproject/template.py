@@ -94,7 +94,7 @@ class Template:
         for file_template in self.file_templates:
             # Render file path:
             output_path = file_template.output_path(context)
-            output_path.mkdir(parents=True, exist_ok=True)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
             # Render file contents:
             output_contents = file_template.output_file_contents(context)
             output_path.write_text(output_contents)
